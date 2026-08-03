@@ -11,7 +11,11 @@ from app.models.chunk import Chunk
 
 from app.routes.documents import router
 
+# user query come and then seaching in pgvector or comparing
+from app.routes.search import router as search_router
 
+# for chating importing file from routes/chat.py
+from app.routes.chat import router as chat_router
 
 Base.metadata.create_all(
     bind=engine
@@ -29,7 +33,14 @@ app.include_router(
     router
 )
 
+#  when user query come and then seaching in pgvector or comparing
+app.include_router(
+    search_router
+)
 
+app.include_router(
+    chat_router
+)
 
 @app.get("/")
 def home():
