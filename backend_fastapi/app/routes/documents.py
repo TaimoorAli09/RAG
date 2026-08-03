@@ -1,12 +1,10 @@
-from fastapi import APIRouter
-from fastapi import UploadFile
-from fastapi import File
-from fastapi import Depends
-
+from fastapi import APIRouter, UploadFile, File, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 import shutil
 import os
+import uuid
+from pathlib import Path
 
 
 from app.models.chunk import Chunk
@@ -14,9 +12,9 @@ from app.models.document import Document
 
 from app.services.pdf_service import extract_text_from_pdf
 from app.services.chunk_service import create_chunks
+from app.services.embedding_service import generate_embedding
 
 from app.core.database import get_db
-
 
 
 router = APIRouter(
@@ -25,15 +23,11 @@ router = APIRouter(
 )
 
 
+UPLOAD_DIR = Path("uploads")
 
-UPLOAD_DIR = "uploads"
-
-
-os.makedirs(
-    UPLOAD_DIR,
+UPLOAD_DIR.mkdir(
     exist_ok=True
 )
-
 
 
 @router.post("/upload")
@@ -42,12 +36,24 @@ def upload_document(
     db: Session = Depends(get_db)
 ):
 
+    # --------------------------------
+    # 1. Validate File
+    # --------------------------------
 
-    # -----------------------------
-    # 1. Save PDF File
-    # -----------------------------
+    if file.content_type != "application/pdf":
+        raise HTTPException(
+            status_code=400,
+            detail="Only PDF files are allowed"
+        )
 
-    file_path = f"{UPLOAD_DIR}/{file.filename}"
+
+    # --------------------------------
+    # 2. Save PDF File
+    # --------------------------------
+
+    unique_filename = f"{uuid.uuid4()}_{file.filename}"
+
+    file_path = UPLOAD_DIR / unique_filename
 
 
     with open(file_path, "wb") as buffer:
@@ -58,17 +64,13 @@ def upload_document(
         )
 
 
-
-    # -----------------------------
-    # 2. Save Document in Database
-    # -----------------------------
+    # --------------------------------
+    # 3. Save Document Metadata
+    # --------------------------------
 
     document = Document(
-
         filename=file.filename,
-
-        file_path=file_path
-
+        file_path=str(file_path)
     )
 
 
@@ -80,19 +82,19 @@ def upload_document(
 
 
 
-    # -----------------------------
-    # 3. Extract PDF Text
-    # -----------------------------
+    # --------------------------------
+    # 4. Extract PDF Text
+    # --------------------------------
 
     pages = extract_text_from_pdf(
-        file_path
+        str(file_path)
     )
 
 
 
-    # -----------------------------
-    # 4. Create Chunks
-    # -----------------------------
+    # --------------------------------
+    # 5. Create Chunks
+    # --------------------------------
 
     chunks = create_chunks(
         pages
@@ -100,11 +102,21 @@ def upload_document(
 
 
 
-    # -----------------------------
-    # 5. Save Chunks in Database
-    # -----------------------------
+    # --------------------------------
+    # 6. Generate Embeddings
+    #    and Save Chunks
+    # --------------------------------
+
+
+    db_chunks = []
+
 
     for chunk in chunks:
+
+
+        embedding = generate_embedding(
+            chunk["text"]
+        )
 
 
         db_chunk = Chunk(
@@ -115,41 +127,44 @@ def upload_document(
 
             chunk_number=chunk["chunk_number"],
 
-            text=chunk["text"]
+            text=chunk["text"],
+
+            embedding=embedding
 
         )
 
 
-        db.add(db_chunk)
+        db_chunks.append(
+            db_chunk
+        )
 
+
+    db.add_all(
+        db_chunks
+    )
 
 
     db.commit()
 
 
 
-    # -----------------------------
-    # 6. Response
-    # -----------------------------
+    # --------------------------------
+    # 7. Response
+    # --------------------------------
+
 
     return {
 
-
-        "message": "Document uploaded",
-
+        "message": "Document uploaded successfully",
 
         "document_id": document.id,
 
-
         "filename": document.filename,
-
 
         "pages": len(pages),
 
-
         "total_chunks": len(chunks),
 
-
-        "data": chunks[:3]
+        "preview": chunks[:3]
 
     }
