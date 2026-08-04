@@ -5,8 +5,9 @@ from sqlalchemy import DateTime
 
 from datetime import datetime
 
-from app.core.database import Base
+from sqlalchemy.orm import relationship
 
+from app.core.database import Base
 
 
 class Document(Base):
@@ -22,3 +23,5 @@ class Document(Base):
     total_pages = Column(Integer)
 
     created_at = Column(DateTime, default=datetime.utcnow)
+
+    chunks = relationship("Chunk", back_populates="document")

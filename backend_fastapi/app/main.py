@@ -11,6 +11,7 @@ from app.models.chunk import Chunk
 
 from app.routes.documents import router
 
+from app.routes.document_view import router as document_view_router
 # user query come and then seaching in pgvector or comparing
 from app.routes.search import router as search_router
 
@@ -41,6 +42,12 @@ app.include_router(
 app.include_router(
     chat_router
 )
+
+
+app.include_router(
+    document_view_router
+)
+
 
 @app.get("/")
 def home():
