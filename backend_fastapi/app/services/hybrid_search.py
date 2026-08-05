@@ -85,12 +85,10 @@ from app.services.bm25_service import bm25_search
 from app.services.search_service import semantic_search
 from app.services.rrf import reciprocal_rank_fusion
 
+from app.services.reranker_service import rerank_documents
 
-def hybrid_search(
-    query,
-    db,
-    limit=5
-):
+
+def hybrid_search(query, db, limit=5):
     """
     Hybrid Retrieval using BM25 + Semantic Search.
 
@@ -117,20 +115,10 @@ def hybrid_search(
     # [(chunk, score), (chunk, score), ...]
     # ----------------------------------------
 
-    bm25_results = bm25_search(
-        query,
-        db,
-        limit=20
-    )
+    bm25_results = bm25_search(query, db, limit=20)
 
     # Extract only Chunk objects
-    bm25_chunks = [
-
-        chunk
-
-        for chunk, score in bm25_results
-
-    ]
+    bm25_chunks = [chunk for chunk, score in bm25_results]
 
     print("BM25 Results :", len(bm25_chunks))
 
@@ -140,11 +128,7 @@ def hybrid_search(
     # [chunk, chunk, chunk]
     # ----------------------------------------
 
-    semantic_chunks = semantic_search(
-        query,
-        db,
-        limit=20
-    )
+    semantic_chunks = semantic_search(query, db, limit=20)
 
     print("Semantic Results :", len(semantic_chunks))
 
@@ -152,13 +136,7 @@ def hybrid_search(
     # Reciprocal Rank Fusion
     # ----------------------------------------
 
-    fused_results = reciprocal_rank_fusion(
-
-        bm25_chunks,
-
-        semantic_chunks
-
-    )
+    fused_results = reciprocal_rank_fusion(bm25_chunks, semantic_chunks)
 
     print("RRF Results :", len(fused_results))
 
@@ -166,4 +144,6 @@ def hybrid_search(
     # Return top chunks
     # ----------------------------------------
 
-    return fused_results[:limit]
+    reranked_results = rerank_documents(query, fused_results[:20], top_k=limit)
+
+    return reranked_results
