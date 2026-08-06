@@ -143,6 +143,8 @@ def hybrid_search(query, db, limit=5):
     # ----------------------------------------
     # Return top chunks
     # ----------------------------------------
+    if len(fused_results) == 0:
+        return []
 
     reranked_results = rerank_documents(query, fused_results[:20], top_k=limit)
 
