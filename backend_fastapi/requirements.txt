@@ -34,3 +34,6 @@ numpy==2.2.6
 
 sentence-transformers==5.1.0
 torch==2.8.0
+
+# LangGraph
+langgraph==0.6.6
