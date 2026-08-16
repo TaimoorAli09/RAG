@@ -1,107 +1,73 @@
-"""
-=========================================================
-File: reranker_service.py
-=========================================================
-
-Purpose:
---------
-This service reranks retrieved chunks using a Cross Encoder
-model.
-
-Why do we need reranking?
--------------------------
-
-Vector search and BM25 are fast retrieval methods.
-
-They find possible relevant documents.
-
-But they are not perfect at understanding
-query-document relationship.
-
-Example:
-
-Query:
-"What is local search?"
-
-Retrieved:
-
-Page 4
-Page 8
-Page 10
-Page 5
-
-
-Cross Encoder checks:
-
-Query + Page Content
-
-and decides the real relevance.
-
-Flow:
-
-Top Retrieved Chunks
-          |
-          |
-          v
-Cross Encoder Model
-          |
-          |
-          v
-Better Ranked Chunks
-
-
-=========================================================
-"""
-
 from sentence_transformers import CrossEncoder
 
-# Load model once when application starts
 
-model = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2")
+# =========================================
+# Load Reranker Model
+# =========================================
 
-
-def rerank_documents(query, chunks, top_k=5):
-    """
-    Rerank retrieved chunks.
-
-    Parameters
-    ----------
-    query:
-        User question
-
-    chunks:
-        Retrieved database chunks
-
-    top_k:
-        Number of final chunks required
+reranker = CrossEncoder(
+    "cross-encoder/ms-marco-MiniLM-L-6-v2"
+)
 
 
-    Returns
-    -------
-    List of chunks sorted by relevance
+# =========================================
+# Rerank Documents
+# =========================================
 
-    """
+def rerank_documents(
+    query,
+    documents,
+    top_k=5,
+    candidate_limit=None
+):
 
-    # Prepare pairs
+    # -----------------------------------------
+    # Candidate selection
+    # -----------------------------------------
 
-    pairs = []
+    if candidate_limit is not None:
+        documents = documents[:candidate_limit]
 
-    for chunk in chunks:
+    if not documents:
+        return []
 
-        pairs.append([query, chunk.text])
+    # -----------------------------------------
+    # Build query-document pairs
+    # -----------------------------------------
 
-    # Get relevance scores
+    pairs = [
+        [query, document.text]
+        for document in documents
+    ]
 
-    scores = model.predict(pairs)
+    # -----------------------------------------
+    # Reranker scoring
+    # -----------------------------------------
 
-    # Attach score with chunk
+    scores = reranker.predict(pairs)
 
-    ranked = list(zip(chunks, scores))
+    # -----------------------------------------
+    # Attach scores
+    # -----------------------------------------
 
+    scored_documents = list(
+        zip(documents, scores)
+    )
+
+    # -----------------------------------------
     # Sort highest score first
+    # -----------------------------------------
 
-    ranked.sort(key=lambda x: x[1], reverse=True)
+    scored_documents.sort(
+        key=lambda x: x[1],
+        reverse=True
+    )
 
-    # Return only chunks
+    # -----------------------------------------
+    # Top K
+    # -----------------------------------------
 
-    return [chunk for chunk, score in ranked[:top_k]]
+    return [
+        document
+        for document, score in scored_documents[:top_k]
+    ]
