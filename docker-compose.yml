@@ -1,25 +1,153 @@
 services:
 
+  # ============================================================
+  # PostgreSQL Database
+  # ============================================================
+  # PostgreSQL database ke liye pgvector-enabled Docker image.
+  # pgvector ki wajah se hum embeddings ko database mein store
+  # aur vector similarity search perform kar sakte hain.
   postgres:
-
     image: pgvector/pgvector:pg17
 
-    container_name: rag_postgres
-
-    restart: always
+    # Container crash/restart hone ke baad automatically restart.
+    restart: unless-stopped
 
     environment:
+      # PostgreSQL database username.
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+
+      # Database password .env file se liya jayega.
+      # Agar .env mein POSTGRES_PASSWORD nahi mila to
+      # Docker Compose error dega.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+
+      # Application ke liye database ka naam.
       POSTGRES_DB: rag_bot_db
 
-    ports:
-      - "5433:5432"
-
+    # PostgreSQL ka data Docker volume mein persist hoga.
+    # Container delete/recreate hone par bhi database data
+    # normally preserve rahega.
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
+    # Check karta hai ke PostgreSQL requests accept karne
+    # ke liye ready hai ya nahi.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d rag_bot_db"]
 
+      # Har 5 seconds mein health check.
+      interval: 5s
+
+      # Ek health check ko maximum 5 seconds milenge.
+      timeout: 5s
+
+      # 12 failed checks ke baad container unhealthy consider hoga.
+      retries: 12
+
+
+  # ============================================================
+  # FastAPI Backend
+  # ============================================================
+  # Ye service hamari Python/FastAPI application run karti hai.
+  api:
+    build: ./backend_fastapi
+
+    # API container crash hone par automatically restart.
+    restart: unless-stopped
+
+    # .env file ke environment variables API container mein
+    # available honge.
+    env_file: .env
+
+    # API tab start hogi jab PostgreSQL healthy ho.
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+    environment:
+
+      # Docker container se Windows host par chalne wali
+      # Ollama application ko access karne ke liye.
+      #
+      # host.docker.internal → Windows host machine
+      # 11434              → Ollama ka default port
+      OLLAMA_HOST: http://host.docker.internal:11434
+
+    # Docker ko host.docker.internal ka route provide karta hai.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+    # Uploaded documents ko persistent Docker volume mein
+    # store kiya jayega.
+    #
+    # Container ke andar:
+    # /app/uploads
+    volumes:
+      - uploads_data:/app/uploads
+
+    # FastAPI ki health endpoint check karta hai.
+    #
+    # API healthy hone ke baad hi "web" container start hoga.
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"
+        ]
+
+      # Har 10 seconds mein API health check.
+      interval: 10s
+
+      # Health check ko maximum 5 seconds milenge.
+      timeout: 5s
+
+      # Maximum 18 failed checks.
+      retries: 18
+
+      # API ko initially start hone ke liye 120 seconds.
+      # RAG/LLM application ko startup mein time lag sakta hai.
+      start_period: 120s
+
+
+  # ============================================================
+  # React Frontend + Nginx
+  # ============================================================
+  # Ye container React frontend serve karta hai aur
+  # Nginx reverse proxy ke through FastAPI ko requests forward
+  # karta hai.
+  web:
+    build: ./react_frontend
+
+    # Container crash/restart hone par automatically restart.
+    restart: unless-stopped
+
+    # Web container tab start hoga jab FastAPI healthy ho.
+    depends_on:
+      api:
+        condition: service_healthy
+
+    # Host machine ka port 80
+    # container ke port 80 se connect hoga.
+    #
+    # Browser:
+    # http://localhost
+    #
+    #        ↓
+    #
+    # Nginx container :80
+    ports:
+      - "80:80"
+
+
+# ================================================================
+# Persistent Docker Volumes
+# ================================================================
 volumes:
 
+  # PostgreSQL database ka persistent data.
   postgres_data:
+
+  # Uploaded documents/files ka persistent storage.
+  uploads_data:

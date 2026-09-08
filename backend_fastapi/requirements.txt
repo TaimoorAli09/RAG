@@ -2,6 +2,11 @@ fastapi==0.116.1
 uvicorn[standard]==0.35.0
 python-multipart==0.0.20
 python-dotenv==1.1.1
+python-jose[cryptography]==3.5.0
+passlib[bcrypt]==1.7.4
+# passlib 1.7.4 is not compatible with bcrypt 5.x's strict length check.
+bcrypt==4.0.1
+email-validator==2.3.0
 
 # Database
 sqlalchemy==2.0.41
@@ -11,23 +16,25 @@ pgvector==0.4.1
 # PDF Processing
 pymupdf==1.26.3
 
-# Chunking
+# LangChain & Chunking (Backtracking roknay ke liye lock versions)
+langchain==0.3.26
+langchain-core==0.3.86
+langchain-community==0.3.27
 langchain-text-splitters==0.3.8
 
 # Ollama
 ollama==0.5.3
-langchain-ollama
+langchain-ollama==0.3.10
 
 # Hybrid Search
 rank-bm25==0.2.2
 
 # Data Processing
 numpy==2.2.6
-sentence-transformers==5.1.0
-torch==2.8.0
 
 # LangGraph
 langgraph==0.6.6
 
-# Evaluation
+# Evaluation & Embeddings
 ragas==0.4.3
+sentence-transformers==6.0.1

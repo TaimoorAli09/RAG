@@ -9,6 +9,8 @@ from langsmith import traceable
 from app.core.database import get_db
 from app.services.hybrid_search import hybrid_search
 from app.services.llm_service import generate_answer
+from app.core.security import get_current_user
+from app.models.user import User
 
 
 class ChatRequest(BaseModel):
@@ -78,7 +80,7 @@ def _build_sources(unique_chunks):
 
 @traceable(name="chat")
 @router.get("/")
-def chat(query: str, db: Session = Depends(get_db)):
+def chat(query: str, db: Session = Depends(get_db), _: User = Depends(get_current_user)):
     # 1. Retrieve relevant chunks
     chunks = hybrid_search(query, db, limit=5)
 
@@ -102,8 +104,8 @@ def chat(query: str, db: Session = Depends(get_db)):
 
 
 @traceable(name="chat_post")
-@router.post("/")
-def chat_post(request: ChatRequest, db: Session = Depends(get_db)):
+@router.post("")
+def chat_post(request: ChatRequest, db: Session = Depends(get_db), _: User = Depends(get_current_user)):
     """POST endpoint for chat - accepts JSON with query field"""
     query = request.query
 
