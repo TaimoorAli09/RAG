@@ -14,3 +14,7 @@ __pycache__/
 
 # Environment
 .env
+
+# Generated runtime data
+backend_fastapi/uploads/
+react_frontend/dist/

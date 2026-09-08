@@ -16,6 +16,8 @@ from app.services.chunk_service import create_chunks
 from app.services.embedding_service import generate_embedding
 
 from app.core.database import get_db
+from app.core.security import require_admin
+from app.models.user import User
 
 # ================================
 # API Router for Document Management
@@ -88,7 +90,8 @@ def process_pdf_file(file_path: str, filename: str, db: Session):
 @router.post("/upload")
 def upload_document(
     file: UploadFile = File(...),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
 ):
     """
     Upload a single PDF file or ZIP file containing PDFs
@@ -189,7 +192,7 @@ def upload_document(
 
 
 @router.get("/list")
-def list_documents(db: Session = Depends(get_db)):
+def list_documents(db: Session = Depends(get_db), _: User = Depends(require_admin)):
     """
     Get list of all uploaded documents with their metadata
     
@@ -216,3 +219,29 @@ def list_documents(db: Session = Depends(get_db)):
         "total_documents": len(result),
         "documents": result
     }
+
+
+@router.patch("/{document_id}")
+def rename_document(document_id: int, filename: str, db: Session = Depends(get_db), _: User = Depends(require_admin)):
+    document = db.get(Document, document_id)
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+    clean_name = Path(filename).name.strip()
+    if not clean_name:
+        raise HTTPException(status_code=400, detail="A filename is required")
+    document.filename = clean_name
+    db.commit()
+    return {"message": "Document updated", "id": document.id, "filename": document.filename}
+
+
+@router.delete("/{document_id}", status_code=204)
+def delete_document(document_id: int, db: Session = Depends(get_db), _: User = Depends(require_admin)):
+    document = db.get(Document, document_id)
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+    file_path = Path(document.file_path)
+    db.query(Chunk).filter(Chunk.document_id == document_id).delete(synchronize_session=False)
+    db.delete(document)
+    db.commit()
+    if file_path.exists():
+        file_path.unlink()

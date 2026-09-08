@@ -1,6 +1,9 @@
-import ollama
+import os
+from ollama import Client
 
 from langsmith import traceable
+
+ollama_client = Client(host=os.getenv("OLLAMA_HOST", "http://localhost:11434"))
 
 
 @traceable(name="generate_answer")
@@ -34,7 +37,7 @@ USER QUESTION:
 ANSWER:
 """
 
-    response = ollama.chat(
+    response = ollama_client.chat(
         model="qwen2.5:0.5b",
 
         options={
