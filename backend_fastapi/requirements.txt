@@ -22,9 +22,8 @@ langchain-core==0.3.86
 langchain-community==0.3.27
 langchain-text-splitters==0.3.8
 
-# Ollama
-ollama==0.5.3
-langchain-ollama==0.3.10
+# Gemini API
+google-genai>=1.0,<2.0
 
 # Hybrid Search
 rank-bm25==0.2.2
@@ -35,6 +34,3 @@ numpy==2.2.6
 # LangGraph
 langgraph==0.6.6
 
-# Evaluation & Embeddings
-ragas==0.4.3
-sentence-transformers==6.0.1
