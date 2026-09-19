@@ -64,18 +64,16 @@ services:
       postgres:
         condition: service_healthy
 
-    environment:
+    environment: {}
 
       # Docker container se Windows host par chalne wali
       # Ollama application ko access karne ke liye.
       #
       # host.docker.internal → Windows host machine
       # 11434              → Ollama ka default port
-      OLLAMA_HOST: http://host.docker.internal:11434
+      # GEMINI_API_KEY is read from .env (via env_file above).
 
     # Docker ko host.docker.internal ka route provide karta hai.
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
 
     # Uploaded documents ko persistent Docker volume mein
     # store kiya jayega.

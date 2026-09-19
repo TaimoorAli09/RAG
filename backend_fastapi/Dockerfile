@@ -3,10 +3,7 @@ FROM python:3.11-slim
 WORKDIR /app
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 
-# 1. CPU-only PyTorch (CUDA downloads block karne ke liye)
-RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
-
-# 2. Dependencies
+# Dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 

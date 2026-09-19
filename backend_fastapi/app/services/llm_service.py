@@ -1,9 +1,9 @@
-import os
-from ollama import Client
+from google import genai
+from google.genai import types
 
 from langsmith import traceable
 
-ollama_client = Client(host=os.getenv("OLLAMA_HOST", "http://localhost:11434"))
+from app.core.config import GEMINI_API_KEY, GEMINI_CHAT_MODEL
 
 
 @traceable(name="generate_answer")
@@ -37,19 +37,14 @@ USER QUESTION:
 ANSWER:
 """
 
-    response = ollama_client.chat(
-        model="qwen2.5:0.5b",
+    if not GEMINI_API_KEY:
+        raise RuntimeError("GEMINI_API_KEY is not configured")
 
-        options={
-            "temperature": 0.1
-        },
-
-        messages=[
-            {
-                "role": "user",
-                "content": prompt
-            }
-        ]
+    client = genai.Client(api_key=GEMINI_API_KEY)
+    response = client.models.generate_content(
+        model=GEMINI_CHAT_MODEL,
+        contents=prompt,
+        config=types.GenerateContentConfig(temperature=0.1),
     )
 
-    return response["message"]["content"]
+    return response.text or "I could not generate an answer from the document context."
